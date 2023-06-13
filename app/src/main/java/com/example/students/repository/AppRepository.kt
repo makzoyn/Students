@@ -3,7 +3,10 @@ package com.example.students.repository
 import androidx.lifecycle.MutableLiveData
 import androidx.room.Room
 import com.example.students.StudentsApplication
+import com.example.students.api.FacultyWithGroups
+import com.example.students.api.GroupsWithStudents
 import com.example.students.api.ServerAPI
+import com.example.students.api.University
 import com.example.students.data.Faculty
 import com.example.students.data.Group
 import com.example.students.data.Student
@@ -11,9 +14,7 @@ import com.example.students.database.UniversityDatabase
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
-import retrofit2.awaitResponse
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class AppRepository private constructor() {
@@ -46,61 +47,66 @@ class AppRepository private constructor() {
         .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private fun getAPI(){
+    private fun getAPI() {
         val url = "http://10.0.2.2:8080/"
         Retrofit.Builder()
-            .baseUrl("http://${url}")
+            .baseUrl(url)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build().apply {
                 myServerAPI = create(ServerAPI::class.java)
             }
     }
+
     suspend fun saveUniversityOnServer() {
-        val universityData = getLocalUniversity()
+        val universityData = getLocalFacultyWithGroups()
 
         val job = CoroutineScope(Dispatchers.IO).launch {
-            myServerAPI!!.postUniversity(universityData)
+            INSTANCE?.myServerAPI?.postUniversity(universityData)
         }
         job.join()
     }
 
-    suspend fun getLocalUniversity(): List<Faculty> {
-        val faculties = universityDao.loadUniversity()
-        val universityData = ArrayList<Faculty>()
-
-        for (faculty in faculties) {
-            val groups = universityDao.loadFacultyGroup(faculty.id!!)
-            val groupList = ArrayList<Group>()
-
-            for (group in groups) {
-                val students = universityDao.loadGroupStudents(group.id!!)
-                val studentList = ArrayList<Student>()
-
-                for (student in students) {
-                    val studentData = Student(
-                        student.id,
-                        student.firstName,
-                        student.lastName,
-                        student.middleName,
-                        student.phone,
-                        student.birthDate,
-                        student.groupID
+    private fun getLocalFacultyWithGroups(): University {
+        val u = university.value!!
+        val _university = ArrayList<FacultyWithGroups>()
+        if (u != null) {
+            for (faculty in u) {
+                val groups = universityDao.loadFacultyGroup(faculty.id!!)
+                val groupList = ArrayList<GroupsWithStudents>()
+                for (g in groups) {
+                    val students = universityDao.loadGroupStudents(g.id!!)
+                    val studentList = ArrayList<Student>()
+                    for (s in students) {
+                        val studentNet = Student(
+                            s.id,
+                            s.firstName,
+                            s.lastName,
+                            s.middleName,
+                            s.phone,
+                            s.birthDate,
+                            s.groupID
+                        )
+                        studentList.add(studentNet)
+                    }
+                    val groupNet = GroupsWithStudents(
+                        faculty.id,
+                        g.id,
+                        g.name!!,
+                        studentList
                     )
-                    studentList.add(studentData)
+                    groupList.add(groupNet)
                 }
-
-                group.students = studentList
-                groupList.add(group)
+                val facultyNet = FacultyWithGroups(
+                    faculty.id,
+                    faculty.name!!,
+                    groupList
+                )
+                _university.add(facultyNet)
             }
-
-            faculty.groups = groupList
-            universityData.add(faculty)
         }
-
-        return universityData
+        return University(_university)
     }
-
 
     fun getServerFaculty(){
         if (myServerAPI != null) {
@@ -119,10 +125,27 @@ class AppRepository private constructor() {
                         universityDao.deleteAllFaculty()
                     }
                     job.join()
-                    val facultyList = r.body()
+                    val facultyList = r.body()?.faculties
                     if (facultyList != null) {
                         for (f in facultyList) {
-                            universityDao.insertNewFaculty(f)
+                            val faculty = Faculty(f.id, f.name)
+                            universityDao.insertNewFaculty(faculty)
+                            for(g in f.groups){
+                                val group = Group(g.id, g.name, faculty.id)
+                                universityDao.insertNewGroup(group)
+                                for(s in g.students){
+                                    val student = Student(
+                                        s.id,
+                                        s.firstName,
+                                        s.lastName,
+                                        s.middleName,
+                                        s.phone,
+                                        s.birthDate,
+                                        s.groupID
+                                    )
+                                    universityDao.insertNewStudent(student)
+                                }
+                            }
                         }
                     }
                 }

@@ -7,5 +7,4 @@
         android:title="@string/new_faculty"
         app:showAsAction="always" />
 
-
 </menu>

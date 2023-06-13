@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity(), FacultyFragment.Callbacks, GroupListFr
                     )
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -134,17 +135,23 @@ class MainActivity : AppCompatActivity(), FacultyFragment.Callbacks, GroupListFr
             .commit()
     }
 
+    override fun onStart() {
+        super.onStart()
+        CoroutineScope(Dispatchers.IO).launch {
+            AppRepository.get().getServerFaculty()
+        }
+    }
     override fun onDestroy() {
         super.onDestroy()
         CoroutineScope(Dispatchers.IO).launch {
-            AppRepository.saveUniversityOnServer()
+            AppRepository.get().saveUniversityOnServer()
         }
     }
 
     override fun onStop() {
         super.onStop()
         CoroutineScope(Dispatchers.IO).launch {
-            AppRepository.saveUniversityOnServer()
+            AppRepository.get().saveUniversityOnServer()
         }
     }
 }

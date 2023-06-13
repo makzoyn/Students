@@ -7,23 +7,16 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.example.students.api.FacultyWithGroups
 import com.example.students.data.Faculty
-import com.example.students.data.FacultyWithGroups
 import com.example.students.data.Group
-import com.example.students.data.GroupWithStudents
 import com.example.students.data.Student
 
 
 @Dao
 interface UniversityDAO {
 
-    @Transaction
-    @Query("SELECT * FROM faculty")
-    suspend fun getFacultiesWithGroups(): List<FacultyWithGroups>
 
-    @Transaction
-    @Query("SELECT * FROM `group` WHERE faculty_id = :facultyId")
-    suspend fun getGroupsWithStudentsByFacultyId(facultyId: Long): List<GroupWithStudents>
 
 
     @Insert(entity = Faculty::class,/*onConflict = OnConflictStrategy.REPLACE*/)
@@ -82,4 +75,16 @@ interface UniversityDAO {
 
     @Query("DELETE FROM university")
     fun deleteAllFaculty()
+
+//    @Transaction
+//    @Query("SELECT id, faculty_name, group.id AS group_id, group.name AS group_name, student.id AS student_id, student.first_name, student.last_name, student.middle_name, student.phone, student.birth_date, student.group_id AS student_group_id FROM university " +
+//            "JOIN faculty ON faculty.id = university.faculty_id " +
+//            "JOIN `group` ON `group`.faculty_id = faculty.id " +
+//            "JOIN student ON student.group_id = `group`.id")
+//    suspend fun getFacultiesWithGroups(): List<FacultyWithGroups>
+
+//    @Transaction
+//    @Query("SELECT * FROM faculty where faculty_id=:facultyID")
+//    suspend fun getGroupsWithStudentsByFacultyId(facultyId: Long): List<GroupWithStudents>
+
 }
